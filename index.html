@@ -264,7 +264,7 @@
 
         <div id="layer-sidebar" class="absolute top-0 right-0 h-full w-72 bg-[#F8F6F2] shadow-xl z-[1001] transform translate-x-full transition-transform duration-300 flex flex-col border-l border-gray-200">
             <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-[#F8F6F2]">
-                <h2 class="text-base font-bold" style="color: #707065;">圖層</h2>
+                <h2 class="text-base font-normal" style="color: #707065;">圖層</h2>
                 <button id="close-sidebar-btn" class="hover:opacity-70 transition-opacity cursor-pointer">
                     <svg class="w-6 h-6" style="color: #707065;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
@@ -299,7 +299,7 @@
         // 初始化地圖，中心點設在台灣
         const map = L.map('map', {
             zoomControl: false
-        }).setView([23.5, 120.8], 8);
+        }).setView([23.6, 120.8], 8);
 
         // 將縮放按鈕移到右下角
         L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -812,9 +812,9 @@
             { id: 'sinica-jm25k-1944', name: '1944年地形圖（航照修正版）', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM25K_1944-png-{z}-{x}-{y}', active: false, obj: null },
             
             { id: 'sinica-jm50k-1916', name: '1916年蕃地地形圖', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM50K_1916-jpg-{z}-{x}-{y}', active: false, obj: null },
-            { id: 'sinica-jm50k-1920', name: '1920年五萬分一地形圖（土木局）', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM50K_1920-png-{z}-{x}-{y}', active: false, obj: null },
-            { id: 'sinica-jm50k-1924', name: '1924年五萬分一地形圖（陸地測量部）', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM50K_1924-jpg-{z}-{x}-{y}', active: false, obj: null },
-            { id: 'sinica-jm50k-1924-new', name: '192年五萬分一地形圖（陸地測量部-新）', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM50K_1924_new-png-{z}-{x}-{y}', active: false, obj: null },
+            { id: 'sinica-jm50k-1920', name: '1920年五萬分之一地形圖（土木局）', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM50K_1920-png-{z}-{x}-{y}', active: false, obj: null },
+            { id: 'sinica-jm50k-1924', name: '1924年五萬分之一地形圖（陸地測量部）', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM50K_1924-jpg-{z}-{x}-{y}', active: false, obj: null },
+            { id: 'sinica-jm50k-1924-new', name: '1924年五萬分之一地形圖（陸地測量部-新）', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM50K_1924_new-png-{z}-{x}-{y}', active: false, obj: null },
             
             { id: 'sinica-jm300k-1924', name: '1924年臺灣全圖（第一版）', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM300K_1924-png-{z}-{x}-{y}', active: false, obj: null },
             { id: 'sinica-jm300k-1934', name: '1934年臺灣全圖（第三版）', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM300K_1934-jpg-{z}-{x}-{y}', active: false, obj: null },
