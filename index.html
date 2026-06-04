@@ -1,0 +1,1603 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>臺灣漫遊の栞</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+    <style>
+        /* 確保地圖層級不會遮擋到側邊欄與浮動視窗 */
+        .leaflet-container { z-index: 0; }
+
+        /* 強制修改所有文字顏色 */
+        * {
+            color: #707064 !important;
+        }
+        /* 鎖定網頁根節點，徹底防止拖曳圖層時造成全畫面位移 */
+        html {
+            overflow: hidden !important;
+            overscroll-behavior: none; /* 同時防止觸控螢幕的邊緣回彈效果 */
+        }
+        /* 獨立設定規劃路線按鈕的文字顏色，以覆蓋全域設定 */
+        #plan-route-btn, #plan-route-btn * {
+            color: #F8F6F2 !important;
+        }
+
+        @font-face {
+            font-family: 'MyCustomFont';
+            src: url("GenKiGothic2TW-R.otf") format('opentype');
+            font-weight: 300;
+            font-style: normal;
+        }
+
+        /* 引入自訂字型檔案：一般字重 (使用 SB) */
+        @font-face {
+            font-family: 'MyCustomFont';
+            src: url("GenKiGothic2TW-M.otf") format('opentype');
+            font-weight: normal;  /* 當網頁要求 normal 時，載入 SB 檔 */
+            font-style: normal;
+        }
+
+        /* 引入自訂字型檔案：粗體字重 (使用 B) */
+        @font-face {
+            font-family: 'MyCustomFont';
+            src: url("GenKiGothic2TW-B.otf") format('opentype');
+            font-weight: bold;    /* 當網頁要求 bold 時，自動載入 B 檔 */
+            font-style: normal;
+        }
+
+        /* 強制套用自訂字型 */
+        body {
+            font-family: 'MyCustomFont', sans-serif !important;
+        }
+
+        /* 自訂側邊欄捲軸樣式，使其更優雅 */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent; 
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #d1d5db; 
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #707064; 
+        }
+        /* 地圖站名標籤：文字 #707065、加厚 Buffer(Halo) #F8F6F2 */
+        /* 地圖站名標籤：文字 #707065、加厚 Buffer(Halo) #F8F6F2 */
+        .map-label-halo {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            color: #707065 !important;
+            font-weight: bold;
+            /* 1. 將固定的 12px 改為 CSS 變數 */
+            font-size: var(--route-label-size, 12px);
+            /* 2. 加入字體縮放的平滑過渡效果 */
+            transition: font-size 0.2s ease-in-out; 
+            
+            text-shadow: 
+                -1px -1px 0 #F8F6F2,  1px -1px 0 #F8F6F2, 
+                -1px  1px 0 #F8F6F2,  1px  1px 0 #F8F6F2,
+                 0px -1px 0 #F8F6F2,  0px  1px 0 #F8F6F2,
+                -1px  0px 0 #F8F6F2,  1px  0px 0 #F8F6F2,
+                 0px  0px 3px #F8F6F2, 0px 0px 3px #F8F6F2, 
+                 0px  0px 3px #F8F6F2, 0px 0px 3px #F8F6F2,
+                 0px  0px 4px #F8F6F2, 0px 0px 4px #F8F6F2,
+                 0px  0px 4px #F8F6F2, 0px 0px 4px #F8F6F2;
+        }
+        /* 隱藏 Leaflet 預設的標籤小箭頭 */
+        .map-label-halo::before {
+            display: none !important;
+        }
+        /* 隱藏 Leaflet 預設的標籤小箭頭 */
+        .map-label-halo::before {
+            display: none !important;
+        }
+        /* 行政區界線的文字標籤樣式 */
+        /* 行政區界線的文字標籤樣式 */
+        /* 行政區界線的文字標籤樣式 */
+        .region-label-halo {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            color: #9D9E8B !important; 
+            font-weight: normal;
+            letter-spacing: 0.1em;
+            font-size: var(--region-label-size, 12px); 
+            text-shadow: 
+                -1px -1px 0 #F8F6F2,  1px -1px 0 #F8F6F2, 
+                -1px  1px 0 #F8F6F2,  1px  1px 0 #F8F6F2,
+                 0px  0px 4px #F8F6F2, 0px 0px 4px #F8F6F2;
+            
+            /* 加入這行：讓透明度改變時有 0.3 秒的平滑過場 */
+            transition: opacity 0.3s ease-in-out; 
+        }
+        .region-label-halo::before {
+            display: none !important;
+        }
+        /* 臺灣行政區階層標籤樣式 - [州廳] */
+        .shu-label-halo {
+            background: transparent !important; border: none !important; box-shadow: none !important;
+            color: #9D9E8B !important; 
+            font-weight: normal; /* 粗體 */
+            font-size: 12px; 
+            letter-spacing: 0.2em; /* 字距寬 */
+            text-shadow: -1px -1px 0 #F8F6F2, 1px -1px 0 #F8F6F2, -1px 1px 0 #F8F6F2, 1px 1px 0 #F8F6F2, 0px 0px 4px #F8F6F2, 0px 0px 4px #F8F6F2;
+        }
+        .shu-label-halo::before { display: none !important; }
+
+        /* 臺灣行政區階層標籤樣式 - [郡市] */
+        .gun-label-halo {
+            background: transparent !important; border: none !important; box-shadow: none !important;
+            color: #B0B1A0 !important; 
+            font-weight: normal; /* 一般體 */
+            font-size: 12px; 
+            letter-spacing: 0.1em;
+            text-shadow: -1px -1px 0 #F8F6F2, 1px -1px 0 #F8F6F2, -1px 1px 0 #F8F6F2, 1px 1px 0 #F8F6F2, 0px 0px 3px #F8F6F2;
+        }
+        .gun-label-halo::before { display: none !important; }
+
+        /* 臺灣行政區階層標籤樣式 - [街庄] */
+        .gai-label-halo {
+            background: transparent !important; border: none !important; box-shadow: none !important;
+            color: #C5C6B6 !important; 
+            font-weight: normal; /* 細體 (呼應您剛加入的細字體設定) */
+            font-size: 12px; 
+            letter-spacing: 0.05em;
+            text-shadow: -1px -1px 0 #F8F6F2, 1px -1px 0 #F8F6F2, -1px 1px 0 #F8F6F2, 1px 1px 0 #F8F6F2, 0px 0px 2px #F8F6F2;
+        }
+        .gai-label-halo::before { display: none !important; }
+        /* 景點標籤基礎樣式：一般粗細，並綁定動態大小變數 */
+        /* 景點標籤基礎樣式：綁定動態大小與透明度變數 */
+        .spot-label-halo {
+            background: transparent !important; border: none !important; box-shadow: none !important;
+            font-weight: normal !important; 
+            font-size: var(--spot-label-size, 6px); 
+            opacity: var(--spot-label-opacity, 0) !important; /* 關鍵：動態控制是否顯示文字 */
+            letter-spacing: 0.05em;
+            text-shadow: -1px -1px 0 #F8F6F2, 1px -1px 0 #F8F6F2, -1px 1px 0 #F8F6F2, 1px 1px 0 #F8F6F2, 0px 0px 2px #F8F6F2;
+            transition: font-size 0.2s ease-in-out, opacity 0.2s ease-in-out; 
+        }
+        .spot-label-halo::before { display: none !important; }
+
+        /* 景點分類顏色 (對應 TYPE 欄位) */
+        .spot-purple { color: #AD69CD !important; } /* 溫泉、劇場、博物館、名勝 */
+        .spot-gray   { color: #76746D !important; } /* 官署、郵便局、學校 */
+        .spot-gold   { color: #CCBC6D !important; } /* 會社、百貨 */
+        .spot-brown  { color: #C49067 !important; } /* 神社、寺院 */
+        .spot-green  { color: #B0C553 !important; } /* 山 */
+        .spot-red    { color: #C16F6B !important; } /* 病院 */
+        .spot-default{ color: #707065 !important; } /* 預設其他 */
+
+        /* 車站標籤樣式：與景點共用動態大小變數，顏色固定為 #707065 */
+        .station-label-halo {
+            background: transparent !important; border: none !important; box-shadow: none !important;
+            color: #707065 !important; 
+            font-weight: bold !important; 
+            font-size: var(--spot-label-size, 10px); 
+            opacity: var(--spot-label-opacity, 0) !important; 
+            letter-spacing: 0.05em;
+            text-shadow: -1px -1px 0 #F8F6F2, 1px -1px 0 #F8F6F2, -1px 1px 0 #F8F6F2, 1px 1px 0 #F8F6F2, 0px 0px 2px #F8F6F2;
+            transition: font-size 0.2s ease-in-out, opacity 0.2s ease-in-out; 
+        }
+        .station-label-halo::before { display: none !important; }
+    </style>
+</head>
+<body class="flex h-screen w-screen overflow-hidden bg-gray-50 text-gray-800 font-sans">
+
+    <div class="w-[450px] bg-[#F8F6F2] shadow-xl z-10 flex flex-col p-6 h-full">
+        <div class="flex-shrink-0">
+            <img src="text1.png" alt="臺灣漫遊の栞" class="h-7 mb-7 w-auto object-contain">
+            
+            <div>
+                    <!-- 出發地 (改為左側字樣) -->
+                <div>
+                    <div class="flex items-center space-x-2 relative">
+                        <!-- 將字樣移到這裡 -->
+                        <span class="text-sm font-bold text-[#9D9E8B] whitespace-nowrap">出發</span>
+                        
+                        <select id="from-shu" class="w-1/4 bg-gray-100 border-transparent rounded-md py-2 px-2 text-sm focus:bg-white focus:ring-2 focus:ring-[#9D9E8B] outline-none transition-all">
+                            <option value="">州廳</option>
+                        </select>
+                        
+                        <div class="flex-1 relative">
+                            <input type="text" id="from-input" placeholder="輸入驛名或選擇州廳" autocomplete="off" class="w-full bg-gray-100 border-transparent rounded-md py-2 px-3 text-sm focus:bg-white focus:ring-2 focus:ring-[#9D9E8B] outline-none transition-all placeholder-gray-400" style="color: #707065;">
+                            <div id="from-menu" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-100 rounded-md shadow-lg max-h-48 overflow-y-auto custom-scrollbar"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 目的地 (改為左側字樣) -->
+            
+            
+                <div class="pt-3"> <div class="flex items-center space-x-2 relative">
+                    <span class="text-sm font-bold text-[#9D9E8B] whitespace-nowrap">到著</span>
+                        
+                        <select id="to-shu" class="w-1/4 bg-gray-100 border-transparent rounded-md py-2 px-2 text-sm focus:bg-white focus:ring-2 focus:ring-[#9D9E8B] outline-none transition-all">
+                            <option value="">州廳</option>
+                        </select>
+                        
+                        <div class="flex-1 relative">
+                            <input type="text" id="to-input" placeholder="輸入驛名或選擇州廳" autocomplete="off" class="w-full bg-gray-100 border-transparent rounded-md py-2 px-3 text-sm focus:bg-white focus:ring-2 focus:ring-[#9D9E8B] outline-none transition-all placeholder-gray-400" style="color: #707065;">
+                            <div id="to-menu" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-100 rounded-md shadow-lg max-h-48 overflow-y-auto custom-scrollbar"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-4 flex items-end space-x-3">
+                    <div class="w-[55%]">
+                        <input type="time" value="07:30" class="w-full bg-gray-100 border-transparent rounded-md py-2 px-3 focus:bg-white focus:ring-2 focus:ring-[#707064] focus:border-transparent outline-none">
+                    </div>
+                    
+                    <button id="plan-route-btn" class="flex-1 bg-[#707064] hover:bg-[#858673] text-white font-medium py-2 rounded-md transition-colors shadow-sm flex justify-between items-center px-4">
+                        <span>出發</span>
+                        <span class="text-xl leading-none pb-0.5">→</span>
+                    </button>
+                </div>
+            </div>
+        </div> 
+
+        <div id="result-card" class="hidden mt-8 flex-1 bg-[#F8F6F2] rounded-lg shadow-sm border border-gray-200 overflow-y-auto custom-scrollbar relative">
+        </div>
+    </div> 
+    
+    <div class="flex-1 relative">
+        <div id="map" class="w-full h-full"></div>
+        <div id="map" class="w-full h-full"></div>
+        
+        <button id="layer-menu-btn" class="absolute top-4 right-4 z-[1000] bg-[#F8F6F2] p-2.5 rounded-md shadow-md border border-gray-200 hover:bg-gray-50 transition-colors outline-none cursor-pointer">
+            <svg class="w-6 h-6" style="color: #707065;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+        </button>
+
+        <div id="layer-sidebar" class="absolute top-0 right-0 h-full w-72 bg-[#F8F6F2] shadow-xl z-[1001] transform translate-x-full transition-transform duration-300 flex flex-col border-l border-gray-200">
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-[#F8F6F2]">
+                <h2 class="text-base font-bold" style="color: #707065;">圖層</h2>
+                <button id="close-sidebar-btn" class="hover:opacity-70 transition-opacity cursor-pointer">
+                    <svg class="w-6 h-6" style="color: #707065;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div class="p-4 border-b border-gray-200 bg-[#F8F6F2] space-y-3 flex-shrink-0">
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" id="toggle-stations" checked class="mr-3 w-4 h-4 accent-[#707065] cursor-pointer">
+                    <span class="text-sm font-medium" style="color: #707065;">鐵道驛</span>
+                </label>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" id="toggle-railway" checked class="mr-3 w-4 h-4 accent-[#707065] cursor-pointer">
+                    <span class="text-sm font-medium" style="color: #707065;">鐵道線路</span>
+                </label>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" id="toggle-admin" checked class="mr-3 w-4 h-4 accent-[#707065] cursor-pointer">
+                    <span class="text-sm font-medium" style="color: #707065;">行政區界</span>
+                </label>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" id="toggle-spots" checked class="mr-3 w-4 h-4 accent-[#707065] cursor-pointer">
+                    <span class="text-sm font-medium" style="color: #707065;">スポット</span>
+                </label>
+            </div>
+
+            <div class="p-2 flex-1 overflow-y-auto custom-scrollbar">
+                <ul id="layer-list" class="space-y-1"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 初始化地圖，中心點設在台灣
+        const map = L.map('map', {
+            zoomControl: false
+        }).setView([23.5, 120.8], 8);
+
+        // 將縮放按鈕移到右下角
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        // ==========================================
+        // 【關鍵修復】將全域圖層開關變數宣告移到最前面！
+        // ==========================================
+        let showAdminLayer = true;
+        let showSpotsLayer = true;
+        let showStationsLayer = true; // 【新增】車站開關變數
+
+        // ==========================================
+        // 建立專屬 Pane (圖層容器) 來精準控制底圖的覆蓋順序
+        // ==========================================
+        // 1. 最底層：Carto 現代底圖
+        map.createPane('cartoPane');
+        map.getPane('cartoPane').style.zIndex = 100;
+
+        // (若您有建立 wmtsPane，它的層級預設在 110，或 Leaflet 預設的 200)
+
+        // 2. 鐵道底圖層 
+        map.createPane('railwayPane');
+        map.getPane('railwayPane').style.zIndex = 210; // 【提高】確保在 WMTS 之上
+        
+        // 3. 景點圖示層
+        map.createPane('spotsPane');
+        map.getPane('spotsPane').style.zIndex = 220; // 【提高】確保在鐵道與 WMTS 之上
+        
+        // 4. 車站圖示層 
+        map.createPane('stationsPane');
+        map.getPane('stationsPane').style.zIndex = 230; // 【提高】確保在景點之上
+        
+        // 5. 行政區與世界地圖常駐底層
+        map.createPane('baseGeoPane');
+        map.getPane('baseGeoPane').style.zIndex = 240; // 【提高】確保行政區界線在最上層
+        
+        // 6. 行政區與景點的文字標籤層
+        map.createPane('regionLabelPane');
+        map.getPane('regionLabelPane').style.zIndex = 250;
+
+        // 7. 車站專屬文字標籤層
+        map.createPane('stationLabelPane');
+        map.getPane('stationLabelPane').style.zIndex = 260;
+
+        // ==========================================
+        // 獨立加入常駐底圖 (不可勾選、不可拖曳)
+        // ==========================================
+        const baseLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 20,
+            pane: 'cartoPane' // 指定放入最底層專屬容器
+        }).addTo(map);
+
+        // ==========================================
+        // 載入 GeoJSON 作為附加常駐底圖 (預設先不加入 map)
+        // ==========================================
+        const baseGeoLayer = L.geoJSON(null, {
+            pane: 'baseGeoPane',
+            style: { color: "#9D9E8B", weight: 0.5, fill: false, interactive: false },
+            onEachFeature: function(feature, layer) {
+                if (feature.properties && feature.properties.NAME) {
+                    layer.bindTooltip(feature.properties.NAME, {
+                        permanent: true, direction: 'center', className: 'region-label-halo',
+                        pane: 'regionLabelPane' // 【關鍵新增】指定放進專屬標籤容器
+                    });
+                }
+            }
+        }); 
+
+        // 讀取您的檔案並載入資料 
+        fetch('world_1938.geojson').then(res => res.json()).then(data => baseGeoLayer.addData(data)).catch(err => console.error("無法載入常駐 GeoJSON 底圖:", err));
+
+        // ==========================================
+        // 載入三個層級的行政區界線 (預設先不加入 map)
+        // ==========================================
+        
+        // 1. 州廳層級
+        const shuLayer = L.geoJSON(null, {
+            pane: 'baseGeoPane',
+            style: { color: "#C5C6B6", weight: 1.2, dashArray: '10, 10', fill: false, interactive: false },
+            onEachFeature: function(feature, layer) {
+                if (feature.properties && feature.properties.NAME) {
+                    layer.bindTooltip(feature.properties.NAME, {
+                        permanent: true, direction: 'center', className: 'shu-label-halo',
+                        pane: 'regionLabelPane' // 【關鍵新增】
+                    });
+                }
+            }
+        });
+
+        // 2. 郡市層級
+        const gunLayer = L.geoJSON(null, {
+            pane: 'baseGeoPane',
+            style: { color: "#C5C6B6", weight: 1, dashArray: '10, 10', fill: false, interactive: false },
+            onEachFeature: function(feature, layer) {
+                if (feature.properties && feature.properties.NAME) {
+                    layer.bindTooltip(feature.properties.NAME, {
+                        permanent: true, direction: 'center', className: 'gun-label-halo',
+                        pane: 'regionLabelPane' // 【關鍵新增】
+                    });
+                }
+            }
+        });
+
+        // 3. 街庄層級
+        const gaiLayer = L.geoJSON(null, {
+            pane: 'baseGeoPane',
+            style: { color: "#C5C6B6", weight: 0.8, dashArray: '5, 5', fill: false, interactive: false },
+            onEachFeature: function(feature, layer) {
+                if (feature.properties && feature.properties.NAME) {
+                    layer.bindTooltip(feature.properties.NAME, {
+                        permanent: true, direction: 'center', className: 'gai-label-halo',
+                        pane: 'regionLabelPane' // 【關鍵新增】
+                    });
+                }
+            }
+        });
+
+        // 讀取檔案並載入資料 
+        fetch('shutei.geojson').then(res => res.json()).then(data => shuLayer.addData(data));
+        fetch('gunshi.geojson').then(res => res.json()).then(data => gunLayer.addData(data));
+        fetch('gaisho.geojson').then(res => res.json()).then(data => gaiLayer.addData(data));
+        
+        // ==========================================
+        // 載入鐵道路線 (使用雙層疊加，製造黑白相間的傳統樣式)
+        // ==========================================
+        
+        // 鐵道底層：深色實線 (#707065)
+        const railwayBaseLayer = L.geoJSON(null, {
+            pane: 'railwayPane',
+            style: { 
+                color: "#707065", 
+                weight: 2,           // 線條粗細
+                opacity: 0.7,        // 調低透明度，使其不刺眼
+                interactive: false 
+            }
+        }).addTo(map); // 預設直接加到地圖上
+
+        // 鐵道上層：淺色虛線 (#F8F6F2)
+        const railwayDashLayer = L.geoJSON(null, {
+            pane: 'railwayPane',
+            style: { 
+                color: "#F8F6F2", 
+                weight: 1.5, 
+                opacity: 0.9,        // 淺色層稍微亮一點
+                dashArray: '10, 10',   // 5px 實線、5px 空白的虛線模式
+                interactive: false 
+            }
+        }).addTo(map);
+
+        // 讀取您的鐵道檔案，並將資料「同時」塞給這兩個圖層
+        // ⚠️ 請記得將 'your_railway.geojson' 換成您實際的鐵路圖層檔名
+        fetch('railways.geojson')
+            .then(res => res.json())
+            .then(data => {
+                railwayBaseLayer.addData(data);
+                railwayDashLayer.addData(data);
+            })
+            .catch(err => console.error("無法載入鐵道圖層:", err));
+
+// ==========================================
+        // 載入景點圖層 (使用 Viewport 過濾與 DivIcon 強制渲染)
+        // ==========================================
+        const spotIconMap = {
+            '劇場': 'theater.svg', '博物館': 'museum.svg', '名勝': 'spot.svg',
+            '學校': 'school.svg', '官署': 'office.svg', '寺院': 'temple.svg',
+            '山': 'mount.svg', '會社': 'firm.svg', '溫泉': 'onsen.svg',
+            '病院': 'hospital.svg', '百貨': 'store.svg', '神社': 'shrine.svg',
+            '郵便局': 'post.svg'
+        };
+
+        const spotColorMap = {
+            '溫泉': 'spot-purple', '劇場': 'spot-purple', '博物館': 'spot-purple', '名勝': 'spot-purple',
+            '官署': 'spot-gray', '郵便局': 'spot-gray', '學校': 'spot-gray',
+            '會社': 'spot-gold', '百貨': 'spot-gold',
+            '神社': 'spot-brown', '寺院': 'spot-brown',
+            '山': 'spot-green'
+        };
+
+        // 建立一個空的 Group，用來存放「目前畫面上可見」的景點 (解決延遲的核心)
+        const activeSpotsGroup = L.layerGroup();
+
+        // 景點母體資料庫 (不直接加入地圖，只存在記憶體中)
+        const spotsLayer = L.geoJSON(null, {
+            pointToLayer: function(feature, latlng) {
+                const type = feature.properties.TYPE;
+                const iconFileName = spotIconMap[type] || 'spot.svg';
+                
+                const icon = L.divIcon({
+                    className: '', 
+                    html: `<img src="${iconFileName}" style="width: 16px; height: 16px; display: block;">`,
+                    iconSize: [16, 16],
+                    iconAnchor: [8, 8] // 移除原本的 tooltipAnchor，交給底下的 offset 控制
+                });
+                return L.marker(latlng, { icon: icon, pane: 'spotsPane', interactive: false });
+            },
+            onEachFeature: function(feature, layer) {
+                if (feature.properties && feature.properties.NAME) {
+                    const type = feature.properties.TYPE;
+                    const colorClass = spotColorMap[type] || 'spot-default';
+                    
+                    layer.bindTooltip(feature.properties.NAME, {
+                        permanent: true, 
+                        direction: 'right', 
+                        className: `spot-label-halo ${colorClass}`, 
+                        pane: 'regionLabelPane',
+                        offset: [0, 0] // 【關鍵修復】將偏移量強制歸零，讓文字緊貼 SVG 圖示
+                    });
+                }
+            }
+        });
+
+        // 【關鍵修復 1】您之前漏貼了這段！讀取檔案並將資料塞進 spotsLayer
+        fetch('spots.geojson')
+            .then(res => res.json())
+            .then(data => {
+                spotsLayer.addData(data);
+                // 【關鍵修復 2】資料倒進去後，強制觸發一次更新，避免初始畫面空白
+                updateSpotsVisibility(); 
+            })
+            .catch(err => console.error("無法載入景點資料:", err));
+
+        // ==========================================
+        // 載入車站圖層 (與景點共用過濾邏輯)
+        // ==========================================
+        const activeStationsGroup = L.layerGroup();
+
+        const stationsLayer = L.geoJSON(null, {
+            pointToLayer: function(feature, latlng) {
+                const icon = L.divIcon({
+                    className: '', 
+                    html: `<img src="station.svg" style="width: 16px; height: 16px; display: block;">`,
+                    iconSize: [16, 16],
+                    iconAnchor: [8, 8] 
+                });
+                return L.marker(latlng, { icon: icon, pane: 'stationsPane', interactive: false });
+            },
+            onEachFeature: function(feature, layer) {
+                if (feature.properties && feature.properties.NAME) {
+                    layer.bindTooltip(feature.properties.NAME, {
+                        permanent: true, 
+                        direction: 'right', 
+                        className: 'station-label-halo', 
+                        pane: 'stationLabelPane', // 【關鍵修改】換成專屬的高層級 Pane
+                        offset: [0, 0] 
+                    });
+                }
+            }
+        });
+
+        fetch('stations.geojson')
+            .then(res => res.json())
+            .then(data => {
+                stationsLayer.addData(data);
+                updateSpotsVisibility(); // 資料載入後觸發更新
+            })
+            .catch(err => console.error("無法載入車站資料:", err));
+
+        // 車站開關切換監聽
+        document.getElementById('toggle-stations').addEventListener('change', (e) => {
+            showStationsLayer = e.target.checked;
+            updateSpotsVisibility(); 
+        });
+        
+        // ==========================================
+        // 依據比例尺動態顯示/隱藏 GeoJSON 界線，並動態縮放文字大小
+        // ==========================================
+        // ==========================================
+        // 依據比例尺動態顯示/隱藏 GeoJSON 界線，並過濾小面積標籤
+        // ==========================================
+        const INITIAL_ZOOM = 8; // 您的預設比例尺
+
+        function updateGeoJsonState() {
+            const currentZoom = map.getZoom();
+
+            if (!showAdminLayer) {
+                if (map.hasLayer(baseGeoLayer)) map.removeLayer(baseGeoLayer);
+                if (map.hasLayer(shuLayer)) map.removeLayer(shuLayer);
+                if (map.hasLayer(gunLayer)) map.removeLayer(gunLayer);
+                if (map.hasLayer(gaiLayer)) map.removeLayer(gaiLayer);
+                return;
+            }
+            
+            // 1. 世界地圖的文字大小動態計算
+            let fontSize = 14;
+            if (currentZoom >= 7) fontSize = 18;
+            else if (currentZoom === 6) fontSize = 14;
+            else if (currentZoom === 5) fontSize = 11;
+            else if (currentZoom <= 4) fontSize = 9;
+            document.documentElement.style.setProperty('--region-label-size', fontSize + 'px');
+
+            // 2. 世界地圖 (GeoJSON) 的顯示與過濾邏輯：只在 Zoom < 8 時顯示
+            if (currentZoom < INITIAL_ZOOM) {
+                if (!map.hasLayer(baseGeoLayer)) map.addLayer(baseGeoLayer);
+
+                baseGeoLayer.eachLayer(function(layer) {
+                    const tooltip = layer.getTooltip();
+                    if (!tooltip) return;
+
+                    const bounds = layer.getBounds();
+                    const width = Math.abs(bounds.getEast() - bounds.getWest());
+                    const height = Math.abs(bounds.getNorth() - bounds.getSouth());
+                    const areaScore = width * height;
+
+                    let threshold = 0;
+                    if (currentZoom <= 3) threshold = 100;
+                    else if (currentZoom === 4) threshold = 20;
+                    else if (currentZoom === 5) threshold = 2;
+                    else if (currentZoom >= 6) threshold = 0;
+
+                    const tooltipEl = tooltip.getElement();
+                    if (tooltipEl) {
+                        tooltipEl.style.opacity = areaScore < threshold ? '0' : '1';
+                    }
+                });
+            } else {
+                if (map.hasLayer(baseGeoLayer)) map.removeLayer(baseGeoLayer);
+            }
+
+            // ==========================================
+            // 3. 臺灣內部行政區的階層式顯示邏輯
+            // ==========================================
+            
+            // [州廳]：Zoom >= 8 時顯示
+            if (currentZoom >= 8) {
+                if (!map.hasLayer(shuLayer)) map.addLayer(shuLayer);
+            } else {
+                if (map.hasLayer(shuLayer)) map.removeLayer(shuLayer);
+            }
+
+            // [郡市]：Zoom >= 10 時才顯示
+            if (currentZoom >= 10) {
+                if (!map.hasLayer(gunLayer)) map.addLayer(gunLayer);
+            } else {
+                if (map.hasLayer(gunLayer)) map.removeLayer(gunLayer);
+            }
+
+            // [街庄]：Zoom >= 12 時才顯示
+            if (currentZoom >= 12) {
+                if (!map.hasLayer(gaiLayer)) map.addLayer(gaiLayer);
+            } else {
+                if (map.hasLayer(gaiLayer)) map.removeLayer(gaiLayer);
+            }
+
+        }
+
+        // ==========================================
+        // 車站與景點共用：視窗範圍過濾與【像素碰撞偵測】
+        // ==========================================
+        function updateSpotsVisibility() {
+            const currentZoom = map.getZoom();
+
+            // 1. 動態控制文字標籤的顯示與大小
+            let spotSize = 10; 
+            let spotOpacity = 0; 
+
+            if (currentZoom >= 16) {
+                spotSize = 12; spotOpacity = 1; 
+            } else if (currentZoom >= 15) {
+                spotSize = 10; spotOpacity = 1; 
+            } else {
+                spotOpacity = 0; // Zoom 14 時只顯示 SVG 圖示
+            }
+            document.documentElement.style.setProperty('--spot-label-size', spotSize + 'px');
+            document.documentElement.style.setProperty('--spot-label-opacity', spotOpacity);
+
+            if (currentZoom >= 14) { 
+                // 處理圖層的加入與移除
+                if (showSpotsLayer && !map.hasLayer(activeSpotsGroup)) map.addLayer(activeSpotsGroup);
+                if (!showSpotsLayer && map.hasLayer(activeSpotsGroup)) map.removeLayer(activeSpotsGroup);
+                
+                if (showStationsLayer && !map.hasLayer(activeStationsGroup)) map.addLayer(activeStationsGroup);
+                if (!showStationsLayer && map.hasLayer(activeStationsGroup)) map.removeLayer(activeStationsGroup);
+
+                const bounds = map.getBounds().pad(0.2); 
+                activeSpotsGroup.clearLayers(); 
+                activeStationsGroup.clearLayers(); 
+
+                const occupiedPositions = [];
+                const MIN_DISTANCE = currentZoom >= 16 ? 0 : 40; 
+
+                // 建立共用的處理邏輯函數
+                const processFeatures = (sourceLayer, targetGroup) => {
+                    sourceLayer.eachLayer(layer => {
+                        const latlng = layer.getLatLng ? layer.getLatLng() : (layer.getBounds ? layer.getBounds().getCenter() : null);
+                        if (latlng && bounds.contains(latlng)) {
+                            let isOverlapping = false;
+                            
+                            if (MIN_DISTANCE > 0) {
+                                const pt = map.latLngToContainerPoint(latlng); 
+                                for (let pos of occupiedPositions) {
+                                    const dx = pos.x - pt.x;
+                                    const dy = pos.y - pt.y;
+                                    if (Math.sqrt(dx*dx + dy*dy) < MIN_DISTANCE) {
+                                        isOverlapping = true;
+                                        break;
+                                    }
+                                }
+                                if (!isOverlapping) occupiedPositions.push(pt); 
+                            }
+
+                            if (!isOverlapping || currentZoom >= 16) {
+                                targetGroup.addLayer(layer);
+                            }
+                        }
+                    });
+                };
+
+                // 【極度重要：順序決定優先權】
+                // 先處理車站，讓車站優先佔據空間；再處理景點，景點若遇到車站太近就會自動退讓隱藏！
+                if (showStationsLayer) processFeatures(stationsLayer, activeStationsGroup);
+                if (showSpotsLayer) processFeatures(spotsLayer, activeSpotsGroup);
+
+            } else {
+                // 縮小於 Zoom 14 時全部清空
+                if (map.hasLayer(activeSpotsGroup)) map.removeLayer(activeSpotsGroup);
+                if (map.hasLayer(activeStationsGroup)) map.removeLayer(activeStationsGroup);
+                activeSpotsGroup.clearLayers(); 
+                activeStationsGroup.clearLayers(); 
+            }
+        }
+
+        // 關鍵：綁定在 'moveend' 上！這樣無論是縮放還是「拖曳平移」，都會即時更新畫面上的景點
+        map.on('moveend', updateSpotsVisibility);
+        
+        // 初始載入時也執行一次
+        updateSpotsVisibility();
+        
+
+        // 綁定地圖縮放結束事件
+        map.on('zoomend', updateGeoJsonState);
+
+        // ==========================================
+        // 依據比例尺，動態調整「規劃路線」的站點與文字大小
+        // ==========================================
+        function updateRouteScale() {
+            const currentZoom = map.getZoom();
+            
+            // 調整說明：大幅下修了 subRadius (沿途小站) 的大小
+            let labelSize = 12, mainRadius = 5, subRadius = 2.5, pathWeight = 5, walkWeight = 4, borderWeight = 3;
+            
+            if (currentZoom >= 14) {
+                // 放得非常大 (市區街道)
+                labelSize = 16; mainRadius = 8; subRadius = 4; pathWeight = 7; walkWeight = 6; borderWeight = 4;
+            } else if (currentZoom >= 11) {
+                // 放大 (跨區/鄉鎮)
+                labelSize = 14; mainRadius = 6; subRadius = 3; pathWeight = 6; walkWeight = 5; borderWeight = 3;
+            } else if (currentZoom >= 8) {
+                // 預設比例尺 (跨縣市)
+                labelSize = 12; mainRadius = 5; subRadius = 2; pathWeight = 5; walkWeight = 4; borderWeight = 3;
+            } else if (currentZoom >= 6) {
+                // 稍微縮小 (半個臺灣)
+                labelSize = 10; mainRadius = 4; subRadius = 1; pathWeight = 4; walkWeight = 3; borderWeight = 2;
+            } else {
+                // 縮到極小 (看見全世界)
+                labelSize = 8; mainRadius = 3; subRadius = 0.5; pathWeight = 3; walkWeight = 2; borderWeight = 1.5;
+            }
+
+            // 1. 更新 CSS 變數，控制地圖上的站名文字大小
+            document.documentElement.style.setProperty('--route-label-size', labelSize + 'px');
+
+            // 2. 遍歷目前畫出來的路線圖層，即時修改幾何形狀的大小
+            if (typeof routeLayerGroup !== 'undefined') {
+                routeLayerGroup.eachLayer(layer => {
+                    // 如果是圓點 (車站)
+                    if (layer instanceof L.CircleMarker) {
+                        if (layer.options.nodeType === 'main') {
+                            layer.setRadius(mainRadius);
+                            layer.setStyle({ weight: borderWeight });
+                        } else if (layer.options.nodeType === 'sub') {
+                            layer.setRadius(subRadius);
+                            // 讓小站的邊框變得極細，避免縮小後看起來像粗糙的甜甜圈
+                            layer.setStyle({ weight: Math.max(0.5, borderWeight - 2) }); 
+                        }
+                    } 
+                    // 如果是折線 (路線軌跡)
+                    else if (layer instanceof L.Polyline) {
+                        if (layer.options.routeType === 'transit') {
+                            layer.setStyle({ weight: pathWeight });
+                        } else if (layer.options.routeType === 'walk') {
+                            layer.setStyle({ weight: walkWeight });
+                        }
+                    }
+                });
+            }
+        }
+
+        map.on('zoomend', updateRouteScale);
+
+        // 網頁初始載入時，強制執行一次以設定正確的文字大小與圖層狀態
+        updateGeoJsonState();
+
+        // 初始載入時，先執行一次檢查，確保邏輯一致
+        if (map.getZoom() < INITIAL_ZOOM) {
+            baseGeoLayer.addTo(map);
+        }
+        // ==========================================
+        // 自訂 WMTS/XYZ 圖層清單 (歷史圖層與衛星圖)
+        // ==========================================
+        const myLayers = [
+            
+            { id: 'sinica-jm25k-1921', name: '1921年二萬五千分之一地形圖', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM25K_1921-png-{z}-{x}-{y}', active: false, obj: null },
+            { id: 'sinica-jm300k-1934', name: '1934年臺灣全圖（第三版）', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM300K_1934-jpg-{z}-{x}-{y}', active: false, obj: null },
+
+            { id: 'sinica-jm20k-1904', name: '1904年臺灣堡圖（明治版）', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM20K_1904-jpg-{z}-{x}-{y}', active: false, obj: null },
+            { id: 'sinica-jm20k-1921', name: '1921年臺灣堡圖（大正版）', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM20K_1921-jpg-{z}-{x}-{y}', active: false, obj: null },
+            
+            { id: 'sinica-jm25k-1942', name: '1942年地形圖（昭和修正版）', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM25K_1942-png-{z}-{x}-{y}', active: false, obj: null },
+            { id: 'sinica-jm25k-1944', name: '1944年地形圖（航照修正版）', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM25K_1944-png-{z}-{x}-{y}', active: false, obj: null },
+            
+            { id: 'sinica-jm50k-1916', name: '1916年蕃地地形圖', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM50K_1916-jpg-{z}-{x}-{y}', active: false, obj: null },
+            { id: 'sinica-jm50k-1920', name: '1920年五萬分一地形圖（土木局）', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM50K_1920-png-{z}-{x}-{y}', active: false, obj: null },
+            { id: 'sinica-jm50k-1924', name: '1924年五萬分一地形圖（陸地測量部）', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM50K_1924-jpg-{z}-{x}-{y}', active: false, obj: null },
+            { id: 'sinica-jm50k-1924-new', name: '192年五萬分一地形圖（陸地測量部-新）', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM50K_1924_new-png-{z}-{x}-{y}', active: false, obj: null },
+            
+            { id: 'sinica-jm300k-1924', name: '1924年臺灣全圖（第一版）', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM300K_1924-png-{z}-{x}-{y}', active: false, obj: null },
+            { id: 'sinica-jm300k-1934', name: '1934年臺灣全圖（第三版）', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM300K_1934-jpg-{z}-{x}-{y}', active: false, obj: null },
+            { id: 'sinica-jm300k-1939', name: '1939年臺灣全圖（第五版）', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM300K_1939-png-{z}-{x}-{y}', active: false, obj: null },
+            { id: 'sinica-jm500k-1936', name: '1936年五十萬分一輿地圖', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM500K_1936-png-{z}-{x}-{y}', active: false, obj: null },
+            
+            { id: 'sinica-yushan-1933', name: '1933年新高登山地圖', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=Yushan_50K_1933-png-{z}-{x}-{y}', active: false, obj: null },
+
+            // 中研院 GIS 中心 - 美軍繪製圖層 (二戰期間）
+            { id: 'sinica-amcity-1945', name: '1945年美軍繪製臺灣城市地圖', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=AMCityPlan_1945-png-{z}-{x}-{y}', active: false, obj: null },
+            { id: 'sinica-am25k-1944a', name: '1944年二萬五千分之一美軍地形圖', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=AM25K_1944A-png-{z}-{x}-{y}', active: false, obj: null },
+            { id: 'sinica-am25k-1944b', name: '1944年二萬五千分之一美軍航照圖', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=AM25K_1944B-png-{z}-{x}-{y}', active: false, obj: null },
+            { id: 'sinica-am50k-1944', name: '1944年五萬分之一美軍地形圖', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=AM50K_1944-png-{z}-{x}-{y}', active: false, obj: null },
+            { id: 'sinica-ams250k-1944', name: '1944年二十五萬分之一美軍地形圖', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=AMS250K_1944-png-{z}-{x}-{y}', active: false, obj: null },
+
+            // 中研院 GIS 中心 - 戰後初期圖層
+            { id: 'sinica-tm25k-1950', name: '1950年二萬五千分之一臺灣地形圖', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=TM25K_1950-png-{z}-{x}-{y}', active: false, obj: null },
+            { id: 'sinica-tm100k-1953', name: '1953年臺灣省交通圖', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=TM100K_1953-png-{z}-{x}-{y}', active: false, obj: null },
+            { id: 'sinica-tm150k-1953', name: '1953年臺糖鐵道網圖', url: 'https://gis.sinica.edu.tw/tileserver/file-exists.php?img=TM150K_1953-png-{z}-{x}-{y}', active: false, obj: null },
+
+            { id: 'nlsc-emap', name: '臺灣通用電子地圖', url: 'https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}', active: false, obj: null },
+            { id: 'nlsc-photo', name: '正射影像圖', url: 'https://wmts.nlsc.gov.tw/wmts/PHOTO2/default/GoogleMapsCompatible/{z}/{y}/{x}', active: false, obj: null },
+
+        ];
+
+        // 初始化圖層並更新覆蓋順序 (越上方的項目，zIndex 越高)
+        function updateMapLayersZIndex() {
+            const listItems = document.querySelectorAll('#layer-list li');
+            listItems.forEach((li, index) => {
+                const layerId = li.getAttribute('data-id');
+                const layerData = myLayers.find(l => l.id === layerId);
+                if (layerData && layerData.obj) {
+                    layerData.obj.setZIndex(100 - index);
+                }
+            });
+        }
+
+        const layerListEl = document.getElementById('layer-list');
+
+        // 動態生成選單並載入地圖
+        myLayers.forEach(layer => {
+            layer.obj = L.tileLayer(layer.url, { maxZoom: 20, transparent: true });
+            if (layer.active) layer.obj.addTo(map);
+
+            const li = document.createElement('li');
+            // 加入 py-2 稍微縮減上下 padding，讓兩行文字的清單不會太佔空間
+            li.className = "flex items-center px-3 py-2 bg-white rounded-md shadow-sm border border-gray-100 cursor-move hover:bg-gray-50 transition-colors";
+            li.setAttribute('data-id', layer.id);
+            
+            // 處理「年」的換行與縮小邏輯
+            let displayHtml = layer.name;
+            if (layer.name.includes('年')) {
+                const idx = layer.name.indexOf('年');
+                const yearPart = layer.name.substring(0, idx + 1); // 包含「年」
+                
+                // 取得後面的字串，並用正則表達式移除了可能接續的破折號或空白
+                // 這樣如果原本叫 "1904年-日治..."，換行後就不會突兀地出現一個 "-" 
+                const namePart = layer.name.substring(idx + 1).replace(/^[-\s]+/, ''); 
+                
+                // 將年份設為極小字 (text-[10px])、顏色變淡，並將主圖層名稱保留粗體
+                displayHtml = `
+                    <span class="block text-[10px] text-[#9D9E8B] font-light leading-none mb-0.5">${yearPart}</span>
+                    <span class="block text-xs font-normal leading-snug">${namePart}</span>
+                `;
+            } else {
+                // 如果沒有「年」，維持單行預設排版
+                displayHtml = `<span class="block text-xs font-normal leading-snug">${layer.name}</span>`;
+            }
+
+            // 注意：
+            // 1. 移除了 label 上的 truncate (不換行截斷)，讓文字可以順利變成兩行
+            // 2. 為左側圖示與核取方塊加上 flex-shrink-0，防止它們因為右邊文字變高而被擠壓變形
+            li.innerHTML = `
+                <div class="mr-3 text-gray-400 cursor-move flex-shrink-0">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path></svg>
+                </div>
+                <input type="checkbox" id="chk-${layer.id}" class="mr-3 w-4 h-4 accent-[#707065] cursor-pointer flex-shrink-0" ${layer.active ? 'checked' : ''}>
+                <label for="chk-${layer.id}" class="flex-1 cursor-pointer select-none" style="color: #707065;">
+                    ${displayHtml}
+                </label>
+            `;
+
+            // 核取方塊的開關監聽
+            const checkbox = li.querySelector(`input[type="checkbox"]`);
+            checkbox.addEventListener('change', (e) => {
+                layer.active = e.target.checked;
+                if (layer.active) {
+                    layer.obj.addTo(map);
+                    updateMapLayersZIndex(); 
+                } else {
+                    map.removeLayer(layer.obj);
+                }
+            });
+
+            layerListEl.appendChild(li);
+        });
+
+        // 綁定拖曳排序功能 (SortableJS)
+        new Sortable(layerListEl, {
+            animation: 150,
+            ghostClass: 'bg-gray-200',
+            // 【關鍵修正】：精準限制拖曳時只能在「圖層清單」的框框內捲動，絕對不允許捲動外層視窗
+            scroll: document.getElementById('layer-list').parentElement, 
+            onEnd: function () {
+                updateMapLayersZIndex(); 
+            }
+        });
+
+        // 側邊欄開關動畫邏輯
+        const layerMenuBtn = document.getElementById('layer-menu-btn');
+        const closeSidebarBtn = document.getElementById('close-sidebar-btn');
+        const layerSidebar = document.getElementById('layer-sidebar');
+
+        layerMenuBtn.addEventListener('click', () => {
+            layerSidebar.classList.remove('translate-x-full');
+        });
+
+        closeSidebarBtn.addEventListener('click', () => {
+            layerSidebar.classList.add('translate-x-full');
+        });
+        
+        // 初始執行一次層級排列
+        updateMapLayersZIndex();
+
+        let routeLayer = null;
+        let markers = [];
+
+        // ==========================================
+        // 解碼 OTP 路線軌跡的函數
+        // ==========================================
+        function decodePolyline(str, precision) {
+            let index = 0, lat = 0, lng = 0, coordinates = [], shift = 0, result = 0, byte = null, 
+                latitude_change, longitude_change, factor = Math.pow(10, Number.isInteger(precision) ? precision : 5);
+            while (index < str.length) {
+                byte = null; shift = 0; result = 0;
+                do { byte = str.charCodeAt(index++) - 63; result |= (byte & 0x1f) << shift; shift += 5; } while (byte >= 0x20);
+                latitude_change = ((result & 1) ? ~(result >> 1) : (result >> 1));
+                shift = result = 0;
+                do { byte = str.charCodeAt(index++) - 63; result |= (byte & 0x1f) << shift; shift += 5; } while (byte >= 0x20);
+                longitude_change = ((result & 1) ? ~(result >> 1) : (result >> 1));
+                lat += latitude_change; lng += longitude_change;
+                coordinates.push([lat / factor, lng / factor]);
+            }
+            return coordinates;
+        }
+
+        let routeLayerGroup = L.layerGroup().addTo(map);
+
+        // ==========================================
+        // 規劃路線核心邏輯
+        // ==========================================
+        document.getElementById('plan-route-btn').addEventListener('click', async function() {
+            const fromId = selectedFromId;
+            const toId = selectedToId;
+            const timeVal = document.querySelector('input[type="time"]').value;
+
+            if (!fromId || !toId) {
+                alert("請完整選擇出發地與目的地的州與車站！");
+                return;
+            }
+
+            routeLayerGroup.clearLayers();
+            if (typeof routeLayer !== 'undefined' && routeLayer) map.removeLayer(routeLayer);
+            if (typeof markers !== 'undefined') markers.forEach(marker => map.removeLayer(marker));
+            
+            const btn = document.getElementById('plan-route-btn');
+            const originalBtnHtml = btn.innerHTML;
+            btn.innerHTML = `<span>……</span><span class="text-xl"></span>`;
+
+           try {
+                const dateVal = "2028-08-01"; 
+                
+                // GTFS GraphQL 查詢語法
+                const gqlQuery = `
+                {
+                    plan(
+                    fromPlace: "1:${fromId}",
+                    toPlace: "1:${toId}",
+                    date: "${dateVal}",
+                    time: "${timeVal}",
+                    numItineraries: 5,
+                    searchWindow: 86400,
+                    transportModes: [{mode: TRANSIT}, {mode: WALK}]
+                    ) {
+                    itineraries {
+                        duration
+                        startTime
+                        endTime
+                        legs {
+                        mode
+                        startTime
+                        endTime
+                        duration
+                        legGeometry { points }
+                        from { name lat lon }
+                        to { name lat lon }
+                        route { gtfsId shortName longName color }
+                        trip { gtfsId }
+                        from { name lat lon }
+                        to { name lat lon }
+                        route { gtfsId shortName longName color }
+                        trip { gtfsId }
+                        
+                        # 新增這個區塊來取得沿途停靠站
+                        intermediateStops {
+                          name
+                          lat
+                          lon
+                        }
+                        }
+                    }
+                    }
+                }`;
+
+                const graphqlEndpoint = 'https://clinking-casually-turmoil.ngrok-free.dev/otp/routers/default/index/graphql';
+
+                const response = await fetch(graphqlEndpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: gqlQuery })
+                });
+
+                const responseJson = await response.json();
+
+                if (responseJson.errors) {
+                    console.warn("GraphQL 回傳錯誤:", responseJson.errors);
+                    alert("查無路線！請確認該時段是否有車，或起終點是否相通。");
+                    btn.innerHTML = originalBtnHtml;
+                    return;
+                }
+
+                const data = responseJson.data;
+
+                if (!data.plan || !data.plan.itineraries || data.plan.itineraries.length === 0) {
+                    alert("查無路線！請確認該時段是否有直達或可轉乘的班次。");
+                    btn.innerHTML = originalBtnHtml;
+                    return;
+                }
+
+                const itinerary = data.plan.itineraries[0];
+                const bounds = []; 
+
+                const formatTime = (ts) => {
+                    const d = new Date(ts);
+                    return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+                };
+
+                const arriveTime = formatTime(itinerary.endTime);
+                const hrs = Math.floor(itinerary.duration / 3600);
+                const mins = Math.floor((itinerary.duration % 3600) / 60);
+                const durationStr = hrs > 0 ? `${hrs}時間${mins}分` : `${mins}分`;
+
+                // 【修正點 1】將頂部標題的 z-index 從 z-10 提升到 z-20，防止往下滾動時圓點與線條溢出遮擋
+                // 同時為內層容器加入 overflow-hidden 防止底部線條溢出
+                let timelineHtml = `
+                    <div class="bg-[#707065] p-4 border-b border-gray-200 flex justify-between items-baseline sticky top-0 z-20">
+                        <div class="text-2xl font-bold" style="color: #F8F6F2 !important;">${arriveTime} <span class="text-sm font-normal ml-1" style="color: #707065 !important;">著</span></div>
+                        <div class="text-right">
+                            <div class="text-sm font-medium" style="color: #F8F6F2 !important;">${durationStr}</div>
+                        </div>
+                    </div>
+                    <div class="p-5 relative custom-timeline ml-2 overflow-hidden">
+                `;
+
+                itinerary.legs.forEach((leg, index) => {
+                    const isLast = index === itinerary.legs.length - 1;
+                    const legStartTime = formatTime(leg.startTime);
+                    
+                    let lineColor = '#3b82f6'; 
+                    let routeName = leg.route ? (leg.route.longName || leg.route.shortName) : '大眾運輸';
+                    let tripDisplay = '';
+                    
+                    if (leg.mode === 'WALK') {
+                        lineColor = '#9ca3af'; 
+                        routeName = '步行';
+                    } else {
+                        // 解析路線顏色
+                        if (leg.route) {
+                            if (leg.route.color) {
+                                lineColor = '#' + leg.route.color;
+                            } else if (leg.route.gtfsId) {
+                                const cleanRouteId = leg.route.gtfsId.split(':').pop();
+                                if (typeof routeInfoMap !== 'undefined' && routeInfoMap[cleanRouteId]) {
+                                    lineColor = routeInfoMap[cleanRouteId].color;
+                                    routeName = routeInfoMap[cleanRouteId].name;
+                                }
+                            }
+                        }
+                        
+                        // 解析並格式化班次 ID
+                        if (leg.trip && leg.trip.gtfsId) {
+                            const rawTripId = leg.trip.gtfsId.split(':').pop();
+                            const parts = rawTripId.split('_');
+                            
+                            let tripPrefix = '';
+                            let tripNumber = '';
+
+                            if (parts.length > 1) {
+                                const parsedNum = parseInt(parts[parts.length - 1], 10);
+                                tripNumber = isNaN(parsedNum) ? parts[parts.length - 1] : parsedNum.toString();
+                                
+                                if (parts.length >= 3) {
+                                    const typeCode = parts[1];
+                                    if (typeCode === 'KI') tripPrefix = '機';
+                                    else if (typeCode === 'KY') tripPrefix = '急行';
+                                    else if (typeCode === 'KS') tripPrefix = '混';
+                                    else if (typeCode === 'NB') tripPrefix = '上';
+                                    else if (typeCode === 'KD') tripPrefix = '下';
+                                    else tripPrefix = typeCode; 
+                                }
+                            } else {
+                                tripNumber = rawTripId;
+                            }
+                            
+                            tripDisplay = ` ｜ ${tripPrefix}${tripNumber}`;
+                        }
+                    }
+
+                    // 【整合優化 1】決定左側時間軸的圓點顏色
+                    // 若為步行轉乘，繼承前一段大眾運輸的顏色
+                    let dotColor = lineColor;
+                    if (leg.mode === 'WALK' && index > 0) {
+                        const prevLeg = itinerary.legs[index - 1];
+                        if (prevLeg.mode !== 'WALK') {
+                            if (prevLeg.route && prevLeg.route.color) {
+                                dotColor = '#' + prevLeg.route.color;
+                            } else if (prevLeg.route && prevLeg.route.gtfsId) {
+                                const cleanId = prevLeg.route.gtfsId.split(':').pop();
+                                if (typeof routeInfoMap !== 'undefined' && routeInfoMap[cleanId]) {
+                                    dotColor = routeInfoMap[cleanId].color;
+                                }
+                            }
+                        }
+                    }
+
+                    // 畫地圖軌跡
+                    if (leg.legGeometry && leg.legGeometry.points) {
+                        const coords = decodePolyline(leg.legGeometry.points);
+                        bounds.push(...coords); 
+                        
+                        L.polyline(coords, {
+                            color: lineColor,
+                            weight: leg.mode === 'WALK' ? 4 : 5,
+                            opacity: 0.9,
+                            lineJoin: 'round',
+                            dashArray: leg.mode === 'WALK' ? '5, 5' : null,
+                            routeType: leg.mode === 'WALK' ? 'walk' : 'transit' // 【新增】標記線條類型
+                        }).addTo(routeLayerGroup);
+                    }
+
+                    // 畫地圖沿途次要站點 (滑鼠懸停才顯示)
+                    if (leg.intermediateStops && leg.intermediateStops.length > 0) {
+                        leg.intermediateStops.forEach(stop => {
+                            const marker = L.circleMarker([stop.lat, stop.lon], {
+                                radius: 3.5, fillColor: "#ffffff", color: lineColor, weight: 2, fillOpacity: 1,
+                                nodeType: 'sub' // 【新增】標記為次要小站
+                            }).addTo(routeLayerGroup);
+                            
+                            marker.bindTooltip(stop.name, { permanent: false, direction: 'right' });
+                            bounds.push([stop.lat, stop.lon]);
+                        });
+                    }
+
+                    // ==========================================
+                    // 【整合優化 2】將路線與班次資訊寫入 HTML (仿 Google Maps 排版)
+                    // ==========================================
+                    let connectingLineStyle = leg.mode === 'WALK' 
+                        ? 'border-left: 2.5px dashed #9ca3af; width: 0;' 
+                        : `background-color: ${lineColor}; width: 2.5px;`;
+
+                    // 步行標籤自動換算分鐘數
+                    let tagHtml = leg.mode === 'WALK'
+                        ? `<div class="text-xs mt-1 font-medium px-2 py-1 rounded inline-block text-center" style="background-color: #9ca3af !important; color: #F8F6F2 !important;">乘換</div>`
+                        : `<div class="text-xs mt-1 font-medium px-2 py-1 rounded inline-block text-center" style="background-color: ${lineColor} !important; color: #F8F6F2 !important;">${routeName}${tripDisplay}</div>`;
+
+                    // 沿途停靠站的手風琴 HTML
+                    let stopsHtml = '';
+                    if (leg.mode !== 'WALK' && leg.intermediateStops && leg.intermediateStops.length > 0) {
+                        let stopsList = leg.intermediateStops.map(stop => `
+                            <div class="text-xs relative" style="color: #707065 !important; margin-bottom: 0.5rem;">
+                                <div class="absolute w-[5px] h-[5px] rounded-full z-10" style="background-color: #ffffff; border: 1.5px solid ${lineColor}; left: -1.05rem; top: 0.25rem;"></div>
+                                ${stop.name}
+                            </div>
+                        `).join('');
+
+                        stopsHtml = `
+                            <div class="mt-2 mb-1">
+                                <button type="button" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('.arrow').classList.toggle('rotate-180')" class="flex items-center text-xs cursor-pointer hover:opacity-80 transition-opacity outline-none" style="color: #707065 !important;">
+                                    <svg class="arrow w-3 h-3 mr-1 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    停車 ${leg.intermediateStops.length} 驛目
+                                </button>
+                                <div class="hidden mt-2 ml-1.5 pl-4 border-l-[1.5px] relative pt-1" style="border-color: ${lineColor}60;">
+                                    ${stopsList}
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    // 區分「搭車」與「步行」的渲染邏輯
+                    if (leg.mode === 'WALK') {
+                        if (index === 0) {
+                            timelineHtml += `
+                                <div class="relative pl-6 pb-4">
+                                    <div class="absolute top-2 bottom-0 z-0" style="left: 0.325rem; transform: translateX(-50%); ${connectingLineStyle}"></div>
+                                    <div class="absolute w-3 h-3 rounded-full left-[-0.05rem] top-1 border-2 border-white z-10" style="background-color: ${dotColor};"></div>
+                                    <div class="flex items-start">
+                                        <span class="text-sm font-normal w-12 pt-0.5" style="color: #707065 !important;">${legStartTime}</span>
+                                        <div class="ml-2 w-full">
+                                            <div class="text-sm font-normal" style="color: #707065 !important;">${leg.from.name}</div>
+                                            ${tagHtml}
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            timelineHtml += `
+                                <div class="relative pl-6 pb-4 pt-1">
+                                    <div class="absolute top-0 bottom-0 z-0" style="left: 0.325rem; transform: translateX(-50%); ${connectingLineStyle}"></div>
+                                    <div class="flex items-start ml-2 w-full">
+                                        <span class="w-12"></span> 
+                                        <div>${tagHtml}</div>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                        
+                        if (isLast) {
+                            timelineHtml += `
+                                <div class="relative pl-6 pb-2">
+                                    <div class="absolute w-3 h-3 bg-white rounded-full left-[-0.05rem] top-1 border-2 z-10" style="border-color: ${lineColor};"></div>
+                                    <div class="flex items-start">
+                                        <span class="text-sm font-normal w-12 pt-0.5" style="color: #707065 !important;">${formatTime(leg.endTime)}</span>
+                                        <div class="ml-2 w-full">
+                                            <div class="text-sm font-normal" style="color: #707065 !important;">${leg.to.name}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    } else {
+                        timelineHtml += `
+                            <div class="relative pl-6 pb-4">
+                                <div class="absolute top-2 bottom-0 z-0" style="left: 0.325rem; transform: translateX(-50%); ${connectingLineStyle}"></div>
+                                <div class="absolute w-3 h-3 rounded-full left-[-0.05rem] top-1 border-2 border-white z-10" style="background-color: ${dotColor};"></div>
+                                <div class="flex items-start">
+                                    <span class="text-sm font-normal w-12 pt-0.5" style="color: #707065 !important;">${legStartTime}</span>
+                                    <div class="ml-2 w-full">
+                                        <div class="text-sm font-normal" style="color: #707065 !important;">${leg.from.name}</div>
+                                        ${tagHtml}
+                                        ${stopsHtml}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        
+                        // 抵達轉乘站使用帶顏色的空心圓圈
+                        timelineHtml += `
+                            <div class="relative pl-6 ${isLast ? 'pb-2' : 'pb-2'}">
+                                <div class="absolute w-3 h-3 bg-white rounded-full left-[-0.05rem] top-1 border-2 z-10" style="border-color: ${lineColor};"></div>
+                                <div class="flex items-start">
+                                    <span class="text-sm font-normal w-12 pt-0.5" style="color: #707065 !important;">${formatTime(leg.endTime)}</span>
+                                    <div class="ml-2 w-full">
+                                        <div class="text-sm font-normal" style="color: #707065 !important;">${leg.to.name}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+
+                timelineHtml += `</div>`;
+
+ // ==========================================
+                // 【整合優化 3】地圖轉乘站去重，並自訂標籤顯示邏輯
+                // ==========================================
+                const waypoints = [];
+                const getLegColor = (l) => {
+                    if (l.mode === 'WALK') return '#9ca3af';
+                    if (l.route && l.route.color) return '#' + l.route.color;
+                    if (l.route && l.route.gtfsId) {
+                        const cleanId = l.route.gtfsId.split(':').pop();
+                        if (typeof routeInfoMap !== 'undefined' && routeInfoMap[cleanId]) return routeInfoMap[cleanId].color;
+                    }
+                    return '#3b82f6';
+                };
+
+                // 將各段的頭尾節點統合 (加入 showLabel 判斷邏輯)
+                for (let i = 0; i <= itinerary.legs.length; i++) {
+                    if (i === 0) {
+                        waypoints.push({ 
+                            stop: itinerary.legs[0].from, 
+                            color: getLegColor(itinerary.legs[0]),
+                            // 第一段如果是搭車，就顯示起點
+                            showLabel: itinerary.legs[0].mode !== 'WALK' 
+                        });
+                    } else if (i === itinerary.legs.length) {
+                        waypoints.push({ 
+                            stop: itinerary.legs[i - 1].to, 
+                            color: getLegColor(itinerary.legs[i - 1]),
+                            // 全行程的最末端終點，永遠顯示
+                            showLabel: true 
+                        });
+                    } else {
+                        const prevLeg = itinerary.legs[i - 1];
+                        const currLeg = itinerary.legs[i];
+                        
+                        let c = '#9ca3af';
+                        if (prevLeg.mode !== 'WALK') c = getLegColor(prevLeg);
+                        else if (currLeg.mode !== 'WALK') c = getLegColor(currLeg);
+                        
+                        waypoints.push({ 
+                            stop: currLeg.from, 
+                            color: c,
+                            // 【關鍵邏輯】接下來要出發的這一段，只要「不是步行」，就顯示該站標籤
+                            showLabel: currLeg.mode !== 'WALK'
+                        });
+                    }
+                }
+
+                // 畫出地圖上不重複的轉乘站與起迄點
+                waypoints.forEach((wp, index) => {
+                    const marker = L.circleMarker([wp.stop.lat, wp.stop.lon], {
+                        radius: 5,
+                        fillColor: "#ffffff",
+                        color: wp.color,
+                        weight: 3,
+                        fillOpacity: 1,
+                        nodeType: 'main' // 標記為主要大站，配合之前的動態縮放
+                    }).addTo(routeLayerGroup);
+                    
+                    // 根據剛剛算出的 showLabel 來決定是否常駐顯示標籤
+                    if (wp.showLabel) {
+                        marker.bindTooltip(wp.stop.name, { 
+                            permanent: true, 
+                            direction: index === waypoints.length - 1 ? 'left' : 'right', 
+                            className: 'map-label-halo',
+                            // 【關鍵修復 1】改用預設的 tooltipPane (z-index: 650)，確保文字絕對蓋在路線線條 (400) 之上
+                            pane: 'tooltipPane', 
+                            // 【關鍵修復 2】將偏移量從 6 縮小到 2，讓文字更緊密地貼在圓點旁
+                            offset: index === waypoints.length - 1 ? [-2, 0] : [2, 0] 
+                        });
+                    } else {
+                        // 步行轉乘起點 (例如：潮州交通局) 隱藏常駐標籤，滑鼠移上去才顯示
+                        marker.bindTooltip(wp.stop.name, { 
+                            permanent: false, 
+                            direction: 'right',
+                            pane: 'tooltipPane', // 滑鼠懸停的標籤也確保在最上層
+                            offset: [2, 0]
+                        });
+                    }
+                    bounds.push([wp.stop.lat, wp.stop.lon]);
+                });
+
+                const resultCard = document.getElementById('result-card');
+                resultCard.innerHTML = timelineHtml;
+                resultCard.classList.remove('hidden');
+                // 路線規劃完畢後，強制套用當下的縮放比例大小
+                updateRouteScale();
+
+                if (bounds.length > 0) {
+                    map.fitBounds(L.latLngBounds(bounds), { padding: [50, 50] });
+                }
+
+            } catch (error) {
+                console.error("API 請求失敗:", error);
+                alert("無法連線至 OTP 伺服器，請確認後端的 localhost:8080 是否運作中。");
+            } finally {
+                btn.innerHTML = originalBtnHtml;
+            }
+        });
+
+// ==========================================
+// 字典對應設定
+// ==========================================
+const shuMap = {
+    'A': '臺北州', 'B': '新竹州', 'C': '臺中州', 
+    'D': '臺南州', 'E': '高雄州', 'F': '臺東廳', 'G': '花蓮港廳'
+};
+
+const operatorMap = {
+    'TRD': '交通局', 'DNS': '大日本製糖', 'ESS': '鹽水港製糖',
+    'TWS': '臺灣製糖', 'SHS': '新興製糖', 'TFO': '營林所',
+    'MJS': '明治製糖', 'TCK': '臺中輕鐵', 'TKS': '帝國製糖',
+    'TTB': '臺東自動車', 'TKB': '東海自動車'
+};
+
+const routeInfoMap = {
+    'JK': { name: '縱貫線', color: '#D54826' }, 'CS': { name: '潮州線', color: '#D54826' },
+    'GR': { name: '宜蘭線', color: '#D54826' }, 'TS': { name: '淡水線', color: '#D54826' },
+    'HS': { name: '北投・新北投間', color: '#D54826' }, 'TC': { name: '臺中線', color: '#D54826' },
+    'SS': { name: '集集線', color: '#D54826' }, 'HK': { name: '平溪線', color: '#D54826' },
+    'KG': { name: '海岸線', color: '#D54826' }, 'TT': { name: '臺東線', color: '#D54826' },
+    'AR': { name: '阿里山鐵道', color: '#568759' }, 'SR': { name: '線西・中寮・彰化・鹿港間', color: '#A3A05D' },
+    'KS': { name: '虎尾・西螺間', color: '#A3A05D' }, 'DB': { name: '田尾・麥寮間', color: '#A3A05D' },
+    'GS': { name: '五塊厝・三姓間', color: '#A3A05D' }, 'TG': { name: '大荖・五塊寮間', color: '#A3A05D' },
+    'TH': { name: '斗南・北港間', color: '#A3A05D' }, 'KL': { name: '后里・大甲・大安港・中庄間', color: '#A3A05D' },
+    'KM': { name: '小梅・大林・新巷間', color: '#A3A05D' }, 'TL': { name: '斗六・崁頭厝間', color: '#A3A05D' },
+    'KO': { name: '嘉義・北港・烏麻園間', color: '#A3A05D' }, 'SH': { name: '新營・布袋間', color: '#4A8BAD' },
+    'TJ': { name: '田中・二林間', color: '#4A8BAD' }, 'KC': { name: '九曲堂・竹頭角間', color: '#DAA557' },
+    'HT': { name: '屏東・里港間', color: '#DAA557' }, 'KJ': { name: '鳳山・工場間', color: '#DAA557' },
+    'HR': { name: '鳳山・林子邊間', color: '#438B80' }, 'TD': { name: '豐原・土牛間', color: '#A5577E' },
+    'DN': { name: '濁水・南投間', color: '#DC7A3B' }, 'NC': { name: '南投・中寮間', color: '#DC7A3B' },
+    'IR': { name: '員林・鹿港間', color: '#DC7A3B' }, 'KK': { name: '嘉義・港墘間', color: '#DC7A3B' },
+    'MS': { name: '水上・蒜頭間', color: '#DC7A3B' }, 'BN': { name: '番子田・二重港間', color: '#DC7A3B' },
+    'TN': { name: '臺中・南投間', color: '#B0917A' }, 'NK': { name: '南廻バス', color: '#785190' },
+    'TK': { name: '東海バス', color: '#46538B' }
+};
+
+let allStations = [];
+let selectedFromId = null;
+let selectedToId = null;
+
+// ==========================================
+// 載入並解析 CSV 檔案
+// ==========================================
+async function loadStationData() {
+    try {
+        const response = await fetch('stop_snapped_shu.csv');
+        const text = await response.text();
+        const lines = text.trim().split('\n');
+        
+        for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].split(',');
+            if (cols.length >= 3) {
+                const stopName = cols[0].trim();
+                const stopId = cols[1].trim();
+                const shuCode = cols[2].trim();
+                
+                let displayName = stopName;
+                if (!displayName.includes('・')) {
+                    const parenIdx = displayName.indexOf('（');
+                    if (parenIdx !== -1) {
+                        displayName = displayName.substring(0, parenIdx);
+                    }
+                }
+                
+                const opCode = stopId.substring(0, 3);
+                const operatorName = operatorMap[opCode] || opCode;
+                
+                allStations.push({
+                    name: displayName, 
+                    id: stopId,
+                    shu: shuCode,
+                    operator: operatorName
+                });
+            }
+        }
+        initShuDropdowns();
+    } catch (err) {
+        console.error("無法載入 CSV 資料:", err);
+    }
+}
+
+// ==========================================
+// 動態渲染與過濾車站列表 (支援關鍵字搜尋)
+// ==========================================
+function renderStationMenu(type) {
+    const inputEl = document.getElementById(`${type}-input`);
+    const shuEl = document.getElementById(`${type}-shu`);
+    const menuEl = document.getElementById(`${type}-menu`);
+    
+    const searchStr = inputEl.value.trim().toLowerCase();
+    const selectedShu = shuEl.value;
+
+    // 依據州廳與輸入的關鍵字進行雙重過濾
+    let filtered = allStations;
+    if (selectedShu) {
+        filtered = filtered.filter(s => s.shu === selectedShu);
+    }
+    if (searchStr) {
+        filtered = filtered.filter(s => s.name.toLowerCase().includes(searchStr));
+    }
+
+    menuEl.innerHTML = '';
+    
+    // 如果找不到結果
+    if (filtered.length === 0) {
+        menuEl.innerHTML = '<div class="px-3 py-2 text-sm text-gray-400 text-center">查無相符驛站</div>';
+        menuEl.classList.remove('hidden');
+        return;
+    }
+
+    // 產生過濾後的清單
+    filtered.forEach(station => {
+        const item = document.createElement('div');
+        item.className = "px-3 py-2 hover:bg-gray-50 cursor-pointer text-sm flex justify-between items-center border-b border-gray-50 last:border-0";
+        
+        item.innerHTML = `
+            <span class="text-gray-800 font-medium truncate pr-2">${station.name}</span>
+            <span class="text-xs text-gray-400 font-normal whitespace-nowrap">${station.operator}</span>
+        `;
+        
+        // 點擊後將站名填入輸入框，並記錄 ID
+        item.addEventListener('click', (e) => {
+            e.stopPropagation(); // 阻止事件冒泡
+            inputEl.value = station.name;
+            if (type === 'from') selectedFromId = station.id;
+            if (type === 'to') selectedToId = station.id;
+            menuEl.classList.add('hidden');
+        });
+        
+        menuEl.appendChild(item);
+    });
+    
+    menuEl.classList.remove('hidden');
+}
+
+// ==========================================
+// 初始化選單與互動邏輯
+// ==========================================
+function initShuDropdowns() {
+    const uniqueShus = [...new Set(allStations.map(s => s.shu))].filter(s => s).sort();
+    const fromShu = document.getElementById('from-shu');
+    const toShu = document.getElementById('to-shu');
+    
+    // 填入州廳選項
+    uniqueShus.forEach(shuCode => {
+        const shuName = shuMap[shuCode] || shuCode;
+        fromShu.insertAdjacentHTML('beforeend', `<option value="${shuCode}">${shuName}</option>`);
+        toShu.insertAdjacentHTML('beforeend', `<option value="${shuCode}">${shuName}</option>`);
+    });
+
+    ['from', 'to'].forEach(type => {
+        const shuEl = document.getElementById(`${type}-shu`);
+        const inputEl = document.getElementById(`${type}-input`);
+        const menuEl = document.getElementById(`${type}-menu`);
+
+        // 當州廳改變時，清空輸入框並重新渲染選單
+        shuEl.addEventListener('change', () => {
+            if (type === 'from') selectedFromId = null;
+            if (type === 'to') selectedToId = null;
+            inputEl.value = '';
+            renderStationMenu(type);
+        });
+        
+        // 使用者打字輸入時即時過濾
+        inputEl.addEventListener('input', () => {
+            // 一旦重新打字，就把原本選擇的 ID 清空，強迫從清單重新選取
+            if (type === 'from') selectedFromId = null;
+            if (type === 'to') selectedToId = null;
+            renderStationMenu(type);
+        });
+        
+        // 點擊輸入框時展開選單
+        inputEl.addEventListener('focus', () => renderStationMenu(type));
+        
+        // 點擊畫面其他地方時關閉選單
+        document.addEventListener('click', (e) => {
+            if (!inputEl.contains(e.target) && !menuEl.contains(e.target)) {
+                menuEl.classList.add('hidden');
+            }
+        });
+    });
+}
+
+// ==========================================
+// 獨立圖層開關切換邏輯
+// ==========================================
+
+// 鐵道路線切換 (直接新增/移除圖層)
+document.getElementById('toggle-railway').addEventListener('change', (e) => {
+    if (e.target.checked) {
+        map.addLayer(railwayBaseLayer);
+        map.addLayer(railwayDashLayer);
+    } else {
+        map.removeLayer(railwayBaseLayer);
+        map.removeLayer(railwayDashLayer);
+    }
+});
+
+// 行政區切換 (修改變數並強制觸發原有的縮放渲染邏輯)
+document.getElementById('toggle-admin').addEventListener('change', (e) => {
+    showAdminLayer = e.target.checked;
+    updateGeoJsonState(); 
+});
+
+// 景點切換 (修改變數並強制觸發原有的縮放渲染邏輯)
+document.getElementById('toggle-spots').addEventListener('change', (e) => {
+    showSpotsLayer = e.target.checked;
+    updateSpotsVisibility(); 
+});
+
+// 執行載入
+loadStationData();
+    </script>
+</body>
+</html>
