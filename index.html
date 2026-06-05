@@ -304,6 +304,12 @@
         // 將縮放按鈕移到右下角
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
+        L.control.scale({ 
+            position: 'bottomleft', // 設定位置在左下角
+            metric: true,           // 顯示公制單位 (公里/公尺)
+            imperial: false         // 隱藏英制單位 (英里/英呎)，讓畫面更乾淨
+        }).addTo(map);
+
         // ==========================================
         // 【關鍵修復】將全域圖層開關變數宣告移到最前面！
         // ==========================================
